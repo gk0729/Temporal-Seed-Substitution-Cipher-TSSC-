@@ -162,3 +162,4 @@ TSSC/
 
 For full theory, see the philosophy above or submit issues / PRs for deeper discussion.  
 Contributions, improvements, and research on further composability are welcome.
+「Licensed under the MIT License」。
