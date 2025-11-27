@@ -231,16 +231,91 @@ function onInputReceived(encryptedText) {
 
 ---
 
-## 8. 附录
+8. 附录
 
-### 8.1 参考资源
+8.1 术语表（Glossary）
+术语缩写 英文全称 中文名称 核心定义 
+TSSC Temporal Seed Substitution Cipher 时种替换加密 基于时间戳动态生成种子，通过字符映射替换实现的可逆加密方案 
+IME Input Method Editor 输入法编辑器 操作系统中负责接收用户输入、转换为目标字符的核心组件 
+NTP Network Time Protocol 网络时间协议 用于跨设备同步时间戳的网络协议，保障加密/解密时间一致性 
+动态映射表 Dynamic Mapping Table 动态映射表 TSSC 核心数据结构，存储「明文-密文」的时间相关映射关系（随时间戳更新） 
+种子密钥 Seed Key 种子密钥 由当前时间戳生成的核心密钥，决定动态映射表的字符对应规则 
 
-- TSSC 核心 SDK 文档：<https://github.com/tssc-project/tssc-core>
-- 各平台输入法开发文档：
-  - Windows IME 开发：Microsoft Docs
-  - Android 输入法开发：Android Developers
-  - iOS 输入法开发：Apple Developer
+8.2 常用工具清单
+工具类型 工具名称/链接 用途说明 
+TSSC 调试工具 TSSC Debugger 验证加密/解密结果、查看动态映射表、模拟时间戳偏差测试 
+字符编码检测工具 Charset Detector（Java）/ iconv（命令行） 校验输入法与 TSSC 编码一致性（UTF-8/GBK 等） 
+输入法日志工具 Windows IME Log Viewer / Android Logcat（过滤 InputMethodService） 捕获输入法输入流程日志，定位拦截时机、加密执行异常 
+时间同步工具 NTP Client（跨平台）/ 系统时间校准工具 保障跨设备时间戳同步（误差≤1s） 
+兼容性测试工具 BrowserStack（Web 端）/ TestFlight（iOS）/ Firebase Test Lab（Android） 快速覆盖多系统、多输入法的兼容性测试场景 
 
-### 8.2 联系方式
+8.3 核心代码片段速查
 
-若遇到适配问题，可在 GitHub 项目 Issues 中提交，或联系 TSSC 技术支持：`tssc-support@example.com`
+8.3.1 TSSC 加密/解密核心调用（跨平台）
+// C/C++ 核心调用（桌面端）
+#include "tssc_core.h"
+std::string plaintext = "测试文本";
+uint64_t timestamp = get_current_timestamp(); // 获取当前时间戳（毫秒级）
+// 加密
+std::string ciphertext = TSSC_Encode(plaintext.c_str(), plaintext.length(), timestamp);
+// 解密
+std::string decrypted = TSSC_Decode(ciphertext.c_str(), ciphertext.length(), timestamp);
+// Web 端核心调用（浏览器输入法）
+import { TSSCCore } from 'tssc-core';
+const plaintext = "测试文本";
+const timestamp = Date.now();
+// 加密
+const ciphertext = TSSCCore.encode(plaintext, timestamp);
+// 解密
+const decrypted = TSSCCore.decode(ciphertext, timestamp);
+8.3.2 时间戳携带与提取示例
+// 加密时附加时间戳（Java）
+String ciphertext = TSSCCore.encode(plaintext, timestamp);
+String output = ciphertext + "#" + timestamp; // 格式：密文#时间戳
+
+// 解密时提取时间戳（Java）
+String[] parts = input.split("#");
+String ciphertext = parts[0];
+long timestamp = Long.parseLong(parts[1]);
+String plaintext = TSSCCore.decode(ciphertext, timestamp);
+8.4 版本兼容性矩阵
+TSSC 版本 支持的输入法类型 兼容系统版本 核心特性支持 
+v1.0.0 拼音/五笔（离线） Windows 10+/macOS 12+/Android 9+/iOS 14+/Chrome 88+ 基础加密/解密、本地时间同步 
+v1.1.0 + 语音转文字（离线） + Windows 11/macOS 13+/Android 10+ 特殊字符适配、NTP 网络时间同步 
+v1.2.0 + 生僻字/Emoji 输入 + iOS 15+/Firefox 90+ 动态映射表扩展、异步加密优化 
+
+8.5 常见错误码说明
+错误码 描述 排查方向 
+0x0001 时间戳偏差过大 检查设备时间同步状态、调整 NTP 同步周期、扩大时间戳容错范围（≤2s） 
+0x0002 字符编码不匹配 统一使用 UTF-8 编码、通过编码检测工具校验输入文本编码 
+0x0003 特殊字符未找到映射 更新 TSSC 动态映射表、添加生僻字/Emoji 对应条目 
+0x0004 权限不足（初始化失败） 按平台要求申请输入法权限、系统时间访问权限 
+0x0005 SDK 初始化未完成 确保输入法启动时先执行 TSSC_Init()，再调用加密/解密接口 
+
+8.6 贡献指南
+
+1. 若需补充新平台（如 Linux 输入法）或新输入法（如rime输入法）的适配方案，可提交 PR 至 doc/adaptation-extensions/ 目录，命名格式为「TSSC-IME-<平台/输入法名称>-适配补充.md」。
+
+2. 发现适配问题或兼容性 Bug，可在 GitHub Issues 中按模板提交（需包含：系统版本、输入法版本、复现步骤、错误日志）。
+
+3. 建议贡献内容：新平台适配代码、兼容性测试报告、错误码扩展说明、工具使用教程。
+
+8.7 参考资源
+
+• 官方文档：
+
+◦ TSSC 核心 SDK 文档：https://github.com/gk0729/Temporal-Seed-Substitution-Cipher-TSSC-/blob/main/doc/TSSC-Core-SDK-Docs.md
+
+◦ 各平台输入法开发指南：
+
+◦ Windows IME：Microsoft Docs - IME 开发
+
+◦ Android 输入法：Android Developers - 输入法框架
+
+◦ iOS 输入法：Apple Developer - 自定义输入法
+
+• 相关标准：
+
+◦ UTF-8 编码标准：RFC 3629
+
+◦ NTP 时间同步协议：RFC 5905
